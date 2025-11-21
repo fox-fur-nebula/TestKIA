@@ -269,10 +269,10 @@ class Parsing:
                             wait_until='domcontentloaded')
                 break
             except PlaywrightTimeoutError:
-                logger.warning(f"Таймаут при загрузке https://www.kia.com{car_url.split('.html')[0]}/features.html, повторная попытка.")
+                logger.warning(f"Таймаут при загрузке https://www.kia.com{car_url.split(".html")[0]}/features.html, повторная попытка.")
                 i+= 1
         else:
-            logger.warning(f'Не получилось собрать данные со страницы https://www.kia.com{car_url.split('.html')[0]}/features.html. Пропуск')
+            logger.warning(f'Не получилось собрать данные со страницы https://www.kia.com{car_url.split(".html")[0]}/features.html. Пропуск')
             return
         logger.info(f'Получены основные данные для {car_url}')
         await HelpFunc.human_delay(max_ms=1350)
