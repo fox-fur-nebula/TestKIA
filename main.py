@@ -7,6 +7,8 @@ import aiofiles
 import ujson
 from pathlib import Path
 
+from starlette.responses import StreamingResponse
+
 from parser import main
 
 app = FastAPI()
@@ -52,5 +54,13 @@ async def get_car_by_model(model_name: str):
 # ----- 3. POST /api/refresh — обновить cars_data.json -----]
 @app.post("/api/refresh")
 async def refresh_data():
-    await main()
-    return {"message": "Data refreshed successfully"}
+    async def event_stream():
+        dots = 1
+        while dots <= 3:
+            yield f"Processing{'.' * dots}\n"
+            await asyncio.sleep(1)
+            dots = dots + 1 if dots < 3 else 1
+
+        yield "Done!\n"
+        await main()
+    return StreamingResponse(event_stream(), media_type="text/plain")

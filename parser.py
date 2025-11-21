@@ -72,7 +72,7 @@ class HelpFunc:
 
     # ----- Обработка полученных данных после парсинга и формирование результата -----]
     @staticmethod
-    async def get_result_of_parsing(specifications, features):
+    async def get_result_of_parsing(vehicle_name, specifications):
         ua_price_regular = None
         ua_price_disc = None
         eu_price_regular = None
@@ -82,10 +82,9 @@ class HelpFunc:
             ua_price_disc = await HelpFunc.find_value_by_partial_key(spec, 'акційна ціна')
             eu_price_regular = await HelpFunc.find_value_by_partial_key(spec, 'еквівалент регулярної ціни')
             eu_price_disc = await HelpFunc.find_value_by_partial_key(spec, 'еквівалент акційної ціни')
-        return  {'model_name': features['vehicle_name'], 'сonfigurations': specifications,
+        return  {'model_name': vehicle_name, 'сonfigurations': specifications,
                   'price': {'EU': eu_price_regular, 'UAH': ua_price_regular},
-                  'price_disc': {'EU': eu_price_disc, 'UAH': ua_price_disc},
-                  'short_technical_specifications': {k: v for k, v in features.items() if k != 'vehicle_name'}}
+                  'price_disc': {'EU': eu_price_disc, 'UAH': ua_price_disc}}
 
     # ----- Сохранение данных в словарь -----
     @staticmethod
@@ -264,22 +263,15 @@ class Parsing:
     # ----- Обработка одной страницы батчинга, для получения оттуда необходимой информации -----]
     async def process_car(self, page: Page, car_url: str):
         try:
-            await page.goto(f'https://www.kia.com{car_url.split(".html")[0]}/features.html', timeout=60000,
-                            wait_until='domcontentloaded')
-        except PlaywrightTimeoutError:
-            logger.warning(f"Таймаут при загрузке https://www.kia.com{car_url.split('.html')[0]}/features.html, продолжаем дальше")
-        await HelpFunc.human_delay(max_ms=1350)
-        features = await self.get_features(page, car_url)
-        try:
             await page.goto(f'https://www.kia.com{car_url.split(".html")[0]}/specification.html', timeout=60000,
                         wait_until='domcontentloaded')
         except PlaywrightTimeoutError:
             logger.warning(f"Таймаут при загрузке https://www.kia.com{car_url.split('.html')[0]}/features.html, продолжаем дальше")
         logger.info(f'Получены основные данные для {car_url}')
         await HelpFunc.human_delay(max_ms=1350)
-        specifications = await self.get_specification(page)
+        vehicle_name, specifications = await self.get_specification(page)
 
-        self.cars_info.append(await HelpFunc.get_result_of_parsing(specifications, features))
+        self.cars_info.append(await HelpFunc.get_result_of_parsing(vehicle_name, specifications))
 
 
     # ----- Парсинг из страницы features авто для кратких характеристик и названия -----]
@@ -304,7 +296,15 @@ class Parsing:
             f"Получено коротких технических характеристик для автомобиля {car_url.split('/')[3].split('.')[0]} - {len(car_features)}")
         await HelpFunc.human_scroll(page=page)
         await HelpFunc.human_delay(max_ms=1350)
-        # Получение названия машины
+        await HelpFunc.human_delay(max_ms=1350)
+        return car_features
+
+    # ----- Парсинг из страницы specification авто для комплектаций -----]
+    @staticmethod
+    async def get_specification(page: Page) ->  tuple[str, list]:
+        data = []
+        # Получение названий авто
+        vehicle_name = ''
         scripts = await page.query_selector_all('script')
         for script in scripts:
             content = await script.text_content()
@@ -312,15 +312,8 @@ class Parsing:
                 continue
             match = re.search(r"'vehicle_name'\s*:\s*'([^']+)'", content)
             if match:
-                car_features['vehicle_name'] = match.group(1).capitalize()
+                vehicle_name = match.group(1).capitalize()
                 break
-        await HelpFunc.human_delay(max_ms=1350)
-        return car_features
-
-    # ----- Парсинг из страницы specification авто для комплектаций -----]
-    @staticmethod
-    async def get_specification(page: Page) -> list[dict[Any, Any]]:
-        data = []
         # Получение всех доступных спецификаций
         specifications = await page.query_selector_all('.parbase.spec_feature_list.section')
         if specifications:
@@ -374,7 +367,7 @@ class Parsing:
                                         value = False
                                 info[curr_spec][current_name][item_key] = value
                 data.append(info)
-        return data
+        return vehicle_name, data
 
 
 # ----- Точка входа -----]
