@@ -262,11 +262,18 @@ class Parsing:
 
     # ----- Обработка одной страницы батчинга, для получения оттуда необходимой информации -----]
     async def process_car(self, page: Page, car_url: str):
-        try:
-            await page.goto(f'https://www.kia.com{car_url.split(".html")[0]}/specification.html', timeout=60000,
-                        wait_until='domcontentloaded')
-        except PlaywrightTimeoutError:
-            logger.warning(f"Таймаут при загрузке https://www.kia.com{car_url.split('.html')[0]}/features.html, продолжаем дальше")
+        i = 1
+        while i <= 3:
+            try:
+                await page.goto(f'https://www.kia.com{car_url.split(".html")[0]}/specification.html', timeout=60000,
+                            wait_until='domcontentloaded')
+                break
+            except PlaywrightTimeoutError:
+                logger.warning(f"Таймаут при загрузке https://www.kia.com{car_url.split('.html')[0]}/features.html, повторная попытка.")
+                i+= 1
+        else:
+            logger.warning(f'Не получилось собрать данные со страницы https://www.kia.com{car_url.split('.html')[0]}/features.html. Пропуск')
+            return
         logger.info(f'Получены основные данные для {car_url}')
         await HelpFunc.human_delay(max_ms=1350)
         vehicle_name, specifications = await self.get_specification(page)
