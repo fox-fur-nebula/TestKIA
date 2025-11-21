@@ -56,11 +56,11 @@ async def get_car_by_model(model_name: str):
 async def refresh_data():
     async def event_stream():
         dots = 1
-        while dots <= 3:
-            yield f"Processing{'.' * dots}\n"
+        task = asyncio.create_task(main())
+        while not task.done():
+            line = f"\r\033[KProcessing{'.' * dots}"
+            yield line
             await asyncio.sleep(1)
             dots = dots + 1 if dots < 3 else 1
-
-        yield "Done!\n"
-        await main()
+        yield "\r\033[KDone!\n"
     return StreamingResponse(event_stream(), media_type="text/plain")
